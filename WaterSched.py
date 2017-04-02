@@ -1,8 +1,10 @@
 #!/bin/python
 import time
+import requests
 
 class WaterScheduler (object):
 	def __init__ (self, numZones, sensors = [], timeSliceSize = 10):
+		self.api_key = 'a680454bfa992fdb'
 		self.numZones = numZones
 		self.zone = [] #track data per zone
 		self.sensors = sensors #array of sensor names and 
@@ -12,7 +14,9 @@ class WaterScheduler (object):
 	def _getSunriseSunset (self):
 		"""
 			Using Wunderground API get sunrise time and sunset times
-		
+			http://api.wunderground.com/api/a680454bfa992fdb/astronomy/q/IN/Notre_Dame.json
+
+
 			Intended to be used by update
 		"""
 		sunrise = 0;
@@ -25,6 +29,9 @@ class WaterScheduler (object):
 			window can be negative, in which case we will not use
 			chanceOfRain and instead look at amount of rain in the
 			past up to window into the past
+			current: http://api.wunderground.com/api/a680454bfa992fdb/conditions/q/IN/Notre_Dame.json
+			history: http://api.wunderground.com/api/a680454bfa992fdb/history_YYYYMMDD/q/IN/Notre_Dame.json
+			current: http://api.wunderground.com/api/a680454bfa992fdb/hourly/q/IN/Notre_Dame.json
 
 			Intended to be used by update
 		"""
