@@ -4,7 +4,9 @@ import requests
 
 class WaterScheduler (object):
 	def __init__ (self, numZones, sensors = [], timeSliceSize = 10):
-		self.api_key = 'a680454bfa992fdb'
+		with open ("wu_api_key.conf", "r") as f:
+			self.api_key = f.readline();
+		#
 		self.numZones = numZones
 		self.zone = [] #track data per zone
 		self.sensors = sensors #array of sensor names and 
@@ -14,7 +16,7 @@ class WaterScheduler (object):
 	def _getSunriseSunset (self):
 		"""
 			Using Wunderground API get sunrise time and sunset times
-			http://api.wunderground.com/api/a680454bfa992fdb/astronomy/q/IN/Notre_Dame.json
+			http://api.wunderground.com/api/self.api_key/astronomy/q/IN/Notre_Dame.json
 
 
 			Intended to be used by update
@@ -29,9 +31,9 @@ class WaterScheduler (object):
 			window can be negative, in which case we will not use
 			chanceOfRain and instead look at amount of rain in the
 			past up to window into the past
-			current: http://api.wunderground.com/api/a680454bfa992fdb/conditions/q/IN/Notre_Dame.json
-			history: http://api.wunderground.com/api/a680454bfa992fdb/history_YYYYMMDD/q/IN/Notre_Dame.json
-			current: http://api.wunderground.com/api/a680454bfa992fdb/hourly/q/IN/Notre_Dame.json
+			current: http://api.wunderground.com/api/self.api_key/conditions/q/IN/Notre_Dame.json
+			history: http://api.wunderground.com/api/self.api_key/history_YYYYMMDD/q/IN/Notre_Dame.json
+			current: http://api.wunderground.com/api/self.api_key/hourly/q/IN/Notre_Dame.json
 
 			Intended to be used by update
 		"""
