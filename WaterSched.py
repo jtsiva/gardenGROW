@@ -124,3 +124,22 @@ class WaterScheduler (object):
 
 		return beginWatering, duration
 		
+
+class dawnDuskScheduler (WaterScheduler):
+	"""
+		Water 20 minutes before sunrise and 2 minutes
+		after sunset. Of course, we can control the time slice
+		size, so we simply set our duration at the top
+	"""
+	def update (self):
+		duration = 20 / self.timeSliceSize
+		sunrise,sunset = self._getSunriseSunset();
+		sunRiseSlice = self._getTimeSlice(sunrise[0], sunrise[1])
+		sunSetSlice = self._getTimeSlice(sunset[0], sunset[1])
+
+		for z in range(self.numZones):
+			for t in range(sunRiseSlice - duration, sunRiseSlice):
+				self.wateringSchedule[z][t] = 1;
+
+			for t in range(sunSetSlice, sunSetSlice + duration):
+				self.wateringSchedule[z][t] = 1;
