@@ -4,7 +4,7 @@ import requests
 import datetime
 
 class WaterScheduler (object):
-	def __init__ (self, numZones = 1, sensors = [], timeSliceSize = 10):
+	def __init__ (self, numZones = 1, sensors = {}, timeSliceSize = 10):
 		"""
 			numZones must be greater than 0. Default is 1
 			sensors is an array of tuples listing the min and max values that can
@@ -21,7 +21,7 @@ class WaterScheduler (object):
 		#
 		self.numZones = numZones
 		self.zone = [] #track data per zone
-		self.sensors = sensors #array of sensor names and 
+		self.sensors = sensors #dictionary of sensor names and 
 							   #acceptable range of values as a tuple
 		self.timeSliceSize = timeSliceSize 
 		self.timeSlices = 24 * 60 / timeSliceSize #for convenience so we don't have to calc every time
