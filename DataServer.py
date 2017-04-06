@@ -9,31 +9,72 @@ import time
 
 
 class S(BaseHTTPRequestHandler):
+
     def _set_headers(self):
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
 
     def do_GET(self):
+        """
+            Used by both the GUI and the base station to get data:
+            Check through the URL args to see which pieces of data to grab
+            Alternatively, if update=1 is passed then send the next 
+                watering time
+        """
         self._set_headers()
         query_components = parse_qs(urlparse(self.path).query)
 
-        #check through the URL args to see which pieces of data to grab
-        #all data is written to a file named like: spike_#_param.txt
-        #the GET message is intended to be used by the client front-end
-        #to feed data to GUI
-        #NO WRITING
+        
         print "in GET method"
 
-        spikeID = query_components["id"]
-        if None != spikeID:
-            print "id = " + str(spikeID)
+        returnData = ""
 
-        temp = query_components["temp"] 
+        try:
+            spikeID = query_components["id"]
+        except KeyError:
+            noID = True
 
-        if None != temp:
-            print "temp request"
-            returnData = getData(spikeID, "temp")
+        try:
+            update = query_components["update"][0]
+            print update
+            if 1 == int(update):
+                """
+                    Send data back in json format
+                    Returning:
+                    {
+                        '0': [dur in minutes] -- int
+                        '1': [dur in minutes] -- int
+                        '2': [dur in minutes] -- int
+                        'sleep': [new deep sleep duration in minutes] -- int
+                    }
+
+                """
+                #get watering data from schedule
+                time = [(0,0) for i in xrange(3)]
+                dur = [0 for i in xrange(3)]
+                
+                returnData += '{'
+
+                for z in range (3):
+                    now = datetime.datetime.now().time()
+                    if (now.hour * 60 + now.minute) + baseStationInterval > (time[z][0] * 60 + time[z][1]):
+                        returnData += '\'' + str(z) + '\': ' + str(dur[z]) + ',\n'
+                    else:
+                        returnData += '\'' + str(z) + '\': 0\n'
+
+                returnData += '\'sleep\': ' + str(baseStationInterval) + '}'
+
+        except KeyError:
+            pass
+
+        if not noID:
+            try:
+                temp = query_components["temp"]
+                print "temp request"
+                returnData = getData(spikeID, "temp")
+            except KeyError:
+                pass                
             
 
         self.wfile.write(returnData)
@@ -55,21 +96,17 @@ class S(BaseHTTPRequestHandler):
         #  "temp" : number,
         #  "CMS" : number,
         #  "RMS" : number,
-        #  "light" : [0-3]}
-
-        spikeID = data["spikeID"]
-        temp = data["temp"]
-        cms = data["CMS"]
-        rms = data["RMS"]
-        light = data["light"]
+        #  "light" : number}
 
         ts = time.time()
         st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
-        storeData (spikeID, "temp", int(data["temp"]), st)
-        storeData (spikeID, "CMS", int(data["CMS"]), st)
-        storeData (spikeID, "RMS", int(data["RMS"]), st)
-        storeData (spikeID, "light", int(data["light"]), st)
+        storeData (data["spikeID"], "temp", int(data["temp"]), st)
+        storeData (data["spikeID"], "CMS", int(data["CMS"]), st)
+        storeData (data["spikeID"], "RMS", int(data["RMS"]), st)
+        storeData (data["spikeID"], "light", int(data["light"]), st)
+
+        #pass data to update function of scheduler
 
         return
 
@@ -87,6 +124,10 @@ def getData (spikeID, dataType):
 
 
 def run(server_class=HTTPServer, handler_class=S, port=80):
+    """
+        Set up the watering scheduler and then start the server
+    """
+
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     print 'Starting httpd...'
@@ -94,6 +135,8 @@ def run(server_class=HTTPServer, handler_class=S, port=80):
 
 if __name__ == "__main__":
     from sys import argv
+
+baseStationInterval = 30 #minutes, can match scheduler
 
 if len(argv) == 2:
     run(port=int(argv[1]))
