@@ -76,7 +76,7 @@ class S(BaseHTTPRequestHandler):
 #may trade out for more sophisticated backend
 def storeData (spikeID, dataType, data, timestamp):
     with open ("data/spike_" + str(spikeID) +"_" + str(dataType) + ".txt", "a") as f:
-            f.write(str(data) + "," + timestamp);
+            f.write(str(data) + "," + timestamp + '\n');
 
 #may trade out for more sophisticated backend
 def getData (spikeID, dataType):

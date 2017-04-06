@@ -1,6 +1,7 @@
 #include <ESP8266HTTPClient.h>
 #include <ESP8266WiFi.h>
 #include <ArduinoJson.h>
+#include <Esp.h>
 
 
 
@@ -11,21 +12,19 @@
  * 
  * */
 
-
-
  
 const char* host = "";
 
-const uint32 sleepDuration = 1800000000; //30 minutes
+const uint32 sleepDuration = 30000000;//30 seconds 1800000000; //30 minutes
 
-os_timer_t myTimer;
+//os_timer_t myTimer;
 
 float waterUsage = 0.0;
-unsigned long waterDuration[3] = {0,0,0}
+unsigned long waterDuration[3] = {0,0,0};
 #define VALVE_0 12
 #define VALVE_1 13
 #define VALVE_2 14
-const int valvePins[] = {VALVE_0, VALVE_1, VALVE_2};
+const int valvePin[] = {VALVE_0, VALVE_1, VALVE_2};
 
 unsigned long wateringTimeStart;
 
@@ -96,11 +95,13 @@ bool connect ()
 bool getWateringDuration ()
 {
   //ask server for offsets
+  return true;
 }
 
 bool sendWaterUsage ()
 {
   //one way update
+  return true;
 }
 
 bool sendSensorUpdates ()
@@ -121,11 +122,11 @@ bool sendSensorUpdates ()
     Serial.println(JSONmessageBuffer);
  
     HTTPClient http;    //Declare object of class HTTPClient
-    http.begin("http://192.168.0.8:8080/");      //Specify request destination
+    http.begin("http://192.168.0.11:8080/");      //Specify request destination
     http.addHeader("Content-Type", "application/json");  //Specify content-type header
   
     int httpCode = http.POST(JSONmessageBuffer);   //Send the request
-    String payload = http.getString();                                        //Get the response payload
+    String payload = http.getString();          //Get the response payload
   
     Serial.println(httpCode);   //Print HTTP return code
     Serial.println(payload);    //Print request response payload
@@ -158,6 +159,24 @@ bool getSpikeInfo(SpikeInfo * pSpike /*, rx16 response*/)
   return true;
 }
 
+// From: https://github.com/esp8266/Arduino/issues/644
+
+void wifiOn()
+{
+  WiFi.forceSleepWake();
+  WiFi.mode(WIFI_STA);  
+  //connect();
+  WiFi.begin(ssid, password);
+}
+
+void wifiOff ()
+{
+  WiFi.disconnect(); 
+  WiFi.mode(WIFI_OFF);
+  WiFi.forceSleepBegin();
+  delay(1);
+}
+
 /* *********** Timing/operation *************
  * Since the deep sleep causes a reset we need to rely on the server
  * to keep track of how much time we have until the next watering event.
@@ -188,7 +207,7 @@ void setup() {
   if (startWatering)
   {
     //turn off the WiFi radio to save power!
-    
+    wifiOff();
     pinMode(FLOWSENSORPIN, INPUT);
     digitalWrite(FLOWSENSORPIN, HIGH);
     lastflowpinstate = digitalRead(FLOWSENSORPIN);
@@ -200,12 +219,15 @@ void setup() {
 
     wateringTimeStart = millis();
     //From http://www.switchdoc.com/2015/10/iot-esp8266-timer-tutorial-arduino-ide/
-    os_timer_setfn(&myTimer, timerCallback, NULL);
-    os_timer_arm(&myTimer, 1, true);
+    //os_timer_setfn(&myTimer, timerCallback, NULL);
+    //os_timer_arm(&myTimer, 1, true);
   }
   else
   {
     // go back to deep sleep
+    //system_deep_sleep_set_option(0);
+    //system_deep_sleep(sleepDuration); //- See more at: http://www.esp8266.com/viewtopic.php?f=32&t=2305#sthash.a8lAW0M0.dpuf
+    ESP.deepSleep (sleepDuration, WAKE_RF_DEFAULT);
   }
 }
 
@@ -233,9 +255,12 @@ void loop ()
 
   if (doneWatering)
   {
-    //Turn the WiFi radio back on!
+    wifiOn (); //back on so we can send data
     sendWaterUsage ();
     //deep sleep
+//    system_deep_sleep_set_option(0);
+//    system_deep_sleep(sleepDuration);
+  ESP.deepSleep (sleepDuration, WAKE_RF_DEFAULT);
   }
   delay(15000);  //Check every 15 seconds
                  //does it matter if we water 15s too much or too little?
