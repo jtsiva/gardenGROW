@@ -12,12 +12,11 @@
  * 
  * */
 
+
  
 const char* host = "";
 
-const uint32 sleepDuration = 30000000;//30 seconds 1800000000; //30 minutes
-
-//os_timer_t myTimer;
+const uint32 sleepDuration = 10000000;//10 seconds 1800000000; //30 minutes
 
 float waterUsage = 0.0;
 unsigned long waterDuration[3] = {0,0,0};
@@ -36,39 +35,13 @@ typedef struct SpikeInfo
   int RMS;
 }SpikeInfo;
 
-
-// flow meter code mostly from:
-//https://github.com/adafruit/Adafruit-Flow-Meter/blob/master/Adafruit_FlowMeter.pde
+volatile unsigned long next;
 
 // which pin to use for reading the sensor? can use any pin!
 #define FLOWSENSORPIN 5
 
 // count how many pulses!
 volatile uint16_t pulses = 0;
-// track the state of the pulse pin
-volatile uint8_t lastflowpinstate;
-// you can try to keep time of how long it is between pulses
-volatile uint32_t lastflowratetimer = 0;
-// and use that to calculate a flow rate
-volatile float flowrate;
-// Interrupt is called once a millisecond, looks for any pulses from the sensor!
-void timerCallback(void *pArg) {
-  uint8_t x = digitalRead(FLOWSENSORPIN);
-  
-  if (x == lastflowpinstate) {
-    lastflowratetimer++;
-    return; // nothing changed!
-  }
-  
-  if (x == HIGH) {
-    //low to high transition!
-    pulses++;
-  }
-  lastflowpinstate = x;
-  flowrate = 1000.0;
-  flowrate /= lastflowratetimer;  // in hertz
-  lastflowratetimer = 0;
-}
 
 bool connect ()
 {
@@ -95,12 +68,46 @@ bool connect ()
 bool getWateringDuration ()
 {
   //ask server for offsets
+
+  //dummy val
+  waterDuration[0] = 10000;
   return true;
 }
 
 bool sendWaterUsage ()
 {
+  //Serial.println(pulses);
   //one way update
+  if (WiFi.status() == WL_CONNECTED) { //Check WiFi connection status
+ 
+    StaticJsonBuffer<300> JSONbuffer;   //Declaring static JSON buffer
+    JsonObject& JSONencoder = JSONbuffer.createObject(); 
+ 
+    JSONencoder["waterUsed"] = pulses;
+ 
+    char JSONmessageBuffer[300];
+    JSONencoder.prettyPrintTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
+    //Serial.println(JSONmessageBuffer);
+ 
+    HTTPClient http;    //Declare object of class HTTPClient
+    http.begin("http://192.168.0.11:8080/");      //Specify request destination
+    http.addHeader("Content-Type", "application/json");  //Specify content-type header
+  
+    int httpCode = http.POST(JSONmessageBuffer);   //Send the request
+    String payload = http.getString();          //Get the response payload
+  
+    //Serial.println(httpCode);   //Print HTTP return code
+    //Serial.println(payload);    //Print request response payload
+  
+    http.end();  //Close connection
+  }
+  else
+  {
+
+    Serial.println ("Not connected!");
+  }
+
+  
   return true;
 }
 
@@ -119,7 +126,7 @@ bool sendSensorUpdates ()
  
     char JSONmessageBuffer[300];
     JSONencoder.prettyPrintTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
-    Serial.println(JSONmessageBuffer);
+    //Serial.println(JSONmessageBuffer);
  
     HTTPClient http;    //Declare object of class HTTPClient
     http.begin("http://192.168.0.11:8080/");      //Specify request destination
@@ -128,8 +135,8 @@ bool sendSensorUpdates ()
     int httpCode = http.POST(JSONmessageBuffer);   //Send the request
     String payload = http.getString();          //Get the response payload
   
-    Serial.println(httpCode);   //Print HTTP return code
-    Serial.println(payload);    //Print request response payload
+    //Serial.println(httpCode);   //Print HTTP return code
+    //Serial.println(payload);    //Print request response payload
   
     http.end();  //Close connection
   } else {
@@ -165,8 +172,8 @@ void wifiOn()
 {
   WiFi.forceSleepWake();
   WiFi.mode(WIFI_STA);  
-  //connect();
-  WiFi.begin(ssid, password);
+  connect();
+  //WiFi.begin(ssid, password);
 }
 
 void wifiOff ()
@@ -175,6 +182,12 @@ void wifiOff ()
   WiFi.mode(WIFI_OFF);
   WiFi.forceSleepBegin();
   delay(1);
+}
+
+//defined per: https://github.com/esp8266/Arduino/issues/2284
+void ICACHE_RAM_ATTR simpleCount ()
+{
+  pulses++;
 }
 
 /* *********** Timing/operation *************
@@ -206,11 +219,9 @@ void setup() {
 
   if (startWatering)
   {
+    //Serial.println ("watering!");
     //turn off the WiFi radio to save power!
     wifiOff();
-    pinMode(FLOWSENSORPIN, INPUT);
-    digitalWrite(FLOWSENSORPIN, HIGH);
-    lastflowpinstate = digitalRead(FLOWSENSORPIN);
     
     for (int i = 0; i < 3; i++)
     {
@@ -218,15 +229,13 @@ void setup() {
     }
 
     wateringTimeStart = millis();
-    //From http://www.switchdoc.com/2015/10/iot-esp8266-timer-tutorial-arduino-ide/
-    //os_timer_setfn(&myTimer, timerCallback, NULL);
-    //os_timer_arm(&myTimer, 1, true);
+
+    pinMode (FLOWSENSORPIN, INPUT_PULLUP);
+    attachInterrupt (FLOWSENSORPIN, simpleCount, CHANGE);
   }
   else
   {
     // go back to deep sleep
-    //system_deep_sleep_set_option(0);
-    //system_deep_sleep(sleepDuration); //- See more at: http://www.esp8266.com/viewtopic.php?f=32&t=2305#sthash.a8lAW0M0.dpuf
     ESP.deepSleep (sleepDuration, WAKE_RF_DEFAULT);
   }
 }
@@ -254,15 +263,13 @@ void loop ()
   }
 
   if (doneWatering)
-  {
+  { 
+    //Serial.println("done watering!");
     wifiOn (); //back on so we can send data
     sendWaterUsage ();
     //deep sleep
-//    system_deep_sleep_set_option(0);
-//    system_deep_sleep(sleepDuration);
-  ESP.deepSleep (sleepDuration, WAKE_RF_DEFAULT);
+    ESP.deepSleep (sleepDuration, WAKE_RF_DEFAULT);
   }
-  delay(15000);  //Check every 15 seconds
-                 //does it matter if we water 15s too much or too little?
+  yield ();  // yield the proc!
  }
 

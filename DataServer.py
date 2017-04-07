@@ -91,33 +91,48 @@ class S(BaseHTTPRequestHandler):
         self.end_headers()
 
         data = simplejson.loads(self.data_string)
-        # data to look like:
-        # {"spikeID" : [0-2],
-        #  "temp" : number,
-        #  "CMS" : number,
-        #  "RMS" : number,
-        #  "light" : number}
+        """
+            data to look like:
+            {"spikeID" : [0-2],
+             "temp" : number,
+             "CMS" : number,
+             "RMS" : number,
+             "light" : number}
+            for sensor update
+            
+            and like:
+            {'waterUsed': int}
+            for water usage update. The number is the number of pulses counted
+        """
 
         ts = time.time()
         st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
-        storeData (data["spikeID"], "temp", int(data["temp"]), st)
-        storeData (data["spikeID"], "CMS", int(data["CMS"]), st)
-        storeData (data["spikeID"], "RMS", int(data["RMS"]), st)
-        storeData (data["spikeID"], "light", int(data["light"]), st)
+
+        try:
+
+            storeData (str(data["spikeID"]) + "-temp", int(data["temp"]), st)
+            storeData (str(data["spikeID"]) + "-CMS", int(data["CMS"]), st)
+            storeData (str(data["spikeID"]) + "-RMS", int(data["RMS"]), st)
+            storeData (str(data["spikeID"]) + "-light", int(data["light"]), st)
+
+        except KeyError:
+            #if the above fails then we must have a water usage update
+            storeData ("waterUsed", data["waterUsed"], st)
+
 
         #pass data to update function of scheduler
 
         return
 
 #may trade out for more sophisticated backend
-def storeData (spikeID, dataType, data, timestamp):
-    with open ("data/spike_" + str(spikeID) +"_" + str(dataType) + ".txt", "a") as f:
+def storeData (dataLabel, data, timestamp):
+    with open ("data/" + str(dataLabel) + ".txt", "a") as f:
             f.write(str(data) + "," + timestamp + '\n');
 
 #may trade out for more sophisticated backend
-def getData (spikeID, dataType):
-    with open("spike_" + str(spikeID) + "_" + str(dataType) + ".txt") as f:
+def getData (spikeID, dataLabel):
+    with open("data/" + str(dataType) + ".txt", "r") as f:
         returnData = f.read()
 
     return returnData
