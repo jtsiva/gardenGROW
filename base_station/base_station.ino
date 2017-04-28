@@ -17,8 +17,9 @@
 
  
 const char* host = "";
-
-const uint32 sleepDuration = 10000000;//10 seconds 1800000000; //30 minutes
+const unsigned long MINUTE_MILLIS = 60000;
+const unsigned long MINUTE_MICROS = 60000000;
+uint32 sleepDuration = 10000000;//10 seconds 1800000000; //30 minutes
 
 float waterUsage = 0.0;
 unsigned long waterDuration[3] = {0,0,0};
@@ -95,11 +96,65 @@ bool connect ()
 bool getUpdatesFromServer ()
 {
   //ask server for offsets
+  int i = 0;
+  char input[128];
+  StaticJsonBuffer<128> jsonBuffer;   
   HTTPClient http;
-  http.get ("http://192.168.0.11:8080/?update=1");
-  //dummy val
-  waterDuration[0] = 0;
+  http.begin ("http://192.168.0.11:8080/?update=1");
+  http.GET();
+
+  http.getString().toCharArray(input, 128);
+
+  JsonObject& root = jsonBuffer.parseObject(input);
+
+  if (!root.success())
+  {
+    postDebug ("Failed to parse!");
+    return false;
+  }
+  else
+  {
+    //received in minutes
+    waterDuration[0] = atol(root["0"]) * MINUTE_MILLIS;
+    waterDuration[1] = atol(root["1"]) * MINUTE_MILLIS;
+    waterDuration[2] = atol(root["2"]) * MINUTE_MILLIS;
+
+    sleepDuration = atol(root["sleep"]) * MINUTE_MICROS;
+    
+//    postDebug ("z0 " + String(waterDuration[0]));
+//    postDebug ("z1 " + String(waterDuration[1]));
+//    postDebug ("z2 " + String(waterDuration[2]));
+//    postDebug ("sleep " + String(sleepDuration));
+  }
+
   return true;
+}
+
+void postDebug (String str)
+{
+  if (WiFi.status() == WL_CONNECTED) { //Check WiFi connection status
+ 
+    StaticJsonBuffer<300> JSONbuffer;   //Declaring static JSON buffer
+    JsonObject& JSONencoder = JSONbuffer.createObject(); 
+ 
+    JSONencoder["debug"] = str;
+ 
+    char JSONmessageBuffer[300];
+    JSONencoder.prettyPrintTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
+    //Serial.println(JSONmessageBuffer);
+ 
+    HTTPClient http;    //Declare object of class HTTPClient
+    http.begin("http://192.168.0.11:8080/");      //Specify request destination
+    http.addHeader("Content-Type", "application/json");  //Specify content-type header
+  
+    int httpCode = http.POST(JSONmessageBuffer);   //Send the request
+    String payload = http.getString();          //Get the response payload
+  
+    //Serial.println(httpCode);   //Print HTTP return code
+    //Serial.println(payload);    //Print request response payload
+  
+    http.end();
+  }
 }
 
 bool sendWaterUsage ()
@@ -360,8 +415,8 @@ void ICACHE_RAM_ATTR simpleCount ()
 void setup() {
   Serial.begin(9600);
   xbee.begin(Serial);
-  delay(5000); //Let the Xbee turn on!
-  getSensorUpdates (); //talk to Spikes to get sensor data
+  //delay(5000); //Let the Xbee turn on!
+ // getSensorUpdates (); //talk to Spikes to get sensor data
   connect (); // connect to the WiFi!
   sendSensorUpdates ();
   getUpdatesFromServer(); // set waterDuration[] array from server response
