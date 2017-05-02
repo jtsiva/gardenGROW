@@ -10,20 +10,23 @@ from sys import argv
 from WaterSched import *
 
 class S(BaseHTTPRequestHandler):
+
     def _set_headers(self):
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
 
     def do_GET(self):
+        """
+            Used by both the GUI and the base station to get data:
+            Check through the URL args to see which pieces of data to grab
+            Alternatively, if update=1 is passed then send the next 
+                watering time
+        """
         self._set_headers()
         query_components = parse_qs(urlparse(self.path).query)
 
-        #check through the URL args to see which pieces of data to grab
-        #all data is written to a file named like: spike_#_param.txt
-        #the GET message is intended to be used by the client front-end
-        #to feed data to GUI
-        #NO WRITING
+        
         print "in GET method"
 
         returnData = ""
@@ -66,6 +69,7 @@ class S(BaseHTTPRequestHandler):
 
                 returnData += '\"sleep\": ' + str(baseStationInterval) + '}'
                 print returnData
+
         except KeyError:
             pass
 
@@ -91,7 +95,6 @@ class S(BaseHTTPRequestHandler):
         self.end_headers()
 
         data = simplejson.loads(self.data_string)
-
         """
             data to look like:
             {"spikeID" : xbee id (char array),
@@ -104,7 +107,7 @@ class S(BaseHTTPRequestHandler):
             and like:
             {'waterUsed': int}
             for water usage update. The number is the number of pulses counted
-        """   
+        """  
 
         ts = time.time()
         st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
@@ -127,13 +130,13 @@ class S(BaseHTTPRequestHandler):
         return
 
 #may trade out for more sophisticated backend
-def storeData (spikeID, dataType, data, timestamp):
-    with open ("data/spike_" + str(spikeID) +"_" + str(dataType) + ".txt", "a") as f:
-            f.write(str(data) + "," + timestamp);
+def storeData (dataLabel, data, timestamp):
+    with open ("data/" + str(dataLabel) + ".txt", "a") as f:
+            f.write(str(data) + "," + timestamp + '\n');
 
 #may trade out for more sophisticated backend
-def getData (spikeID, dataType):
-    with open("spike_" + str(spikeID) + "_" + str(dataType) + ".txt") as f:
+def getData (spikeID, dataLabel):
+    with open("data/" + str(dataType) + ".txt", "r") as f:
         returnData = f.read()
 
     return returnData
