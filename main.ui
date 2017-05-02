@@ -17,7 +17,7 @@
    <widget class="QSlider" name="forecastW_slider">
     <property name="geometry">
      <rect>
-      <x>110</x>
+      <x>140</x>
       <y>490</y>
       <width>160</width>
       <height>40</height>
@@ -30,7 +30,7 @@
    <widget class="QSlider" name="water_slider">
     <property name="geometry">
      <rect>
-      <x>110</x>
+      <x>140</x>
       <y>530</y>
       <width>160</width>
       <height>29</height>
@@ -43,23 +43,10 @@
    <widget class="QSlider" name="waterLimit_slider">
     <property name="geometry">
      <rect>
-      <x>110</x>
+      <x>140</x>
       <y>570</y>
       <width>160</width>
       <height>20</height>
-     </rect>
-    </property>
-    <property name="orientation">
-     <enum>Qt::Horizontal</enum>
-    </property>
-   </widget>
-   <widget class="QSlider" name="randOp_slider">
-    <property name="geometry">
-     <rect>
-      <x>430</x>
-      <y>490</y>
-      <width>160</width>
-      <height>29</height>
      </rect>
     </property>
     <property name="orientation">
@@ -70,7 +57,7 @@
     <property name="geometry">
      <rect>
       <x>0</x>
-      <y>460</y>
+      <y>470</y>
       <width>671</width>
       <height>16</height>
      </rect>
@@ -84,7 +71,7 @@
      <rect>
       <x>8</x>
       <y>500</y>
-      <width>101</width>
+      <width>111</width>
       <height>20</height>
      </rect>
     </property>
@@ -97,7 +84,7 @@
      <rect>
       <x>9</x>
       <y>534</y>
-      <width>101</width>
+      <width>111</width>
       <height>20</height>
      </rect>
     </property>
@@ -118,19 +105,6 @@
      <string>Water Limit</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_4">
-    <property name="geometry">
-     <rect>
-      <x>328</x>
-      <y>495</y>
-      <width>110</width>
-      <height>20</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Random Option</string>
-    </property>
-   </widget>
    <widget class="PlotWidget" name="cms_plot">
     <property name="geometry">
      <rect>
@@ -145,7 +119,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>200</y>
+      <y>210</y>
       <width>291</width>
       <height>111</height>
      </rect>
@@ -155,7 +129,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>340</y>
+      <y>350</y>
       <width>291</width>
       <height>111</height>
      </rect>
@@ -175,41 +149,28 @@
     <property name="geometry">
      <rect>
       <x>350</x>
-      <y>200</y>
+      <y>210</y>
       <width>291</width>
       <height>111</height>
      </rect>
     </property>
    </widget>
-   <widget class="PlotWidget" name="rain_chance_plot">
+   <widget class="PlotWidget" name="watering_chance_plot">
     <property name="geometry">
      <rect>
       <x>350</x>
-      <y>340</y>
+      <y>350</y>
       <width>291</width>
       <height>111</height>
      </rect>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="test_button">
-    <property name="geometry">
-     <rect>
-      <x>330</x>
-      <y>540</y>
-      <width>89</width>
-      <height>27</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Test</string>
     </property>
    </widget>
    <widget class="QLabel" name="label_5">
     <property name="geometry">
      <rect>
       <x>160</x>
-      <y>20</y>
-      <width>351</width>
+      <y>10</y>
+      <width>411</width>
       <height>31</height>
      </rect>
     </property>
@@ -220,6 +181,94 @@
     </property>
     <property name="text">
      <string>Garden GROW Dashboard</string>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="comboBox">
+    <property name="geometry">
+     <rect>
+      <x>350</x>
+      <y>490</y>
+      <width>291</width>
+      <height>30</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_4">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>50</y>
+      <width>191</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Capacitive Moisture Sensor</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_6">
+    <property name="geometry">
+     <rect>
+      <x>350</x>
+      <y>50</y>
+      <width>181</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Resistive Moisture Sensor</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_7">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>190</y>
+      <width>91</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Temperature</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_8">
+    <property name="geometry">
+     <rect>
+      <x>350</x>
+      <y>190</y>
+      <width>67</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Light</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_9">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>330</y>
+      <width>91</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Water Usage</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_10">
+    <property name="geometry">
+     <rect>
+      <x>350</x>
+      <y>330</y>
+      <width>161</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Watering Schedule</string>
     </property>
    </widget>
   </widget>

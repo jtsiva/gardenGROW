@@ -1,3 +1,4 @@
+#!/usr/bin/python
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import SocketServer
 import simplejson
@@ -5,8 +6,8 @@ import random
 from urlparse import urlparse, parse_qs
 import datetime
 import time
-
-
+from sys import argv
+from WaterSched import *
 
 class S(BaseHTTPRequestHandler):
 
@@ -51,19 +52,23 @@ class S(BaseHTTPRequestHandler):
 
                 """
                 #get watering data from schedule
-                time = [(0,0) for i in xrange(3)]
-                dur = [0 for i in xrange(3)]
+                time = [(0,0) for i in xrange(scheduler.numZones)]
+                dur = [0 for i in xrange(scheduler.numZones)]
+                for i in xrange(scheduler.numZones):
+                    time[i] = scheduler.getNextZoneWatering(i)[0]
+                    dur[i] = scheduler.getNextZoneWatering(i)[1]
                 
                 returnData += '{'
 
-                for z in range (3):
+                for z in range (scheduler.numZones):
                     now = datetime.datetime.now().time()
                     if (now.hour * 60 + now.minute) + baseStationInterval > (time[z][0] * 60 + time[z][1]):
-                        returnData += '\'' + str(z) + '\': ' + str(dur[z]) + ',\n'
+                        returnData += '\"' + str(z) + '\": ' + str(dur[z]) + ',\n'
                     else:
-                        returnData += '\'' + str(z) + '\': 0\n'
+                        returnData += '\"' + str(z) + '\": 0\n'
 
-                returnData += '\'sleep\': ' + str(baseStationInterval) + '}'
+                returnData += '\"sleep\": ' + str(baseStationInterval) + '}'
+                print returnData
 
         except KeyError:
             pass
@@ -75,7 +80,6 @@ class S(BaseHTTPRequestHandler):
                 returnData = getData(spikeID, "temp")
             except KeyError:
                 pass                
-            
 
         self.wfile.write(returnData)
 
@@ -93,7 +97,7 @@ class S(BaseHTTPRequestHandler):
         data = simplejson.loads(self.data_string)
         """
             data to look like:
-            {"spikeID" : [0-2],
+            {"spikeID" : xbee id (char array),
              "temp" : number,
              "CMS" : number,
              "RMS" : number,
@@ -103,12 +107,12 @@ class S(BaseHTTPRequestHandler):
             and like:
             {'waterUsed': int}
             for water usage update. The number is the number of pulses counted
-        """
+        """  
 
         ts = time.time()
         st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
-
+        print data
         try:
 
             storeData (str(data["spikeID"]) + "-temp", int(data["temp"]), st)
@@ -121,7 +125,7 @@ class S(BaseHTTPRequestHandler):
             storeData ("waterUsed", data["waterUsed"], st)
 
 
-        #pass data to update function of scheduler
+        scheduler.update()
 
         return
 
@@ -146,14 +150,17 @@ def run(server_class=HTTPServer, handler_class=S, port=80):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     print 'Starting httpd...'
-    httpd.serve_forever()
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print "Exiting..."
 
 if __name__ == "__main__":
-    from sys import argv
+    scheduler = dawnDuskScheduler (numZones = 1)
+    scheduler.update()
+    baseStationInterval = 10#30 #minutes, can match scheduler
 
-baseStationInterval = 30 #minutes, can match scheduler
-
-if len(argv) == 2:
-    run(port=int(argv[1]))
-else:
-    run()
+    if len(argv) == 2:
+        run(port=int(argv[1]))
+    else:
+        run()
