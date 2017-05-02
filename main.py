@@ -56,8 +56,10 @@ def main ():
 	xData = []
 
 	with open("data/waterUsed.txt") as f:
+		total = 0
 		for line in f:
-			waterData.append (int(line.split(",")[0]))
+			total += int(line.split(",")[0])
+			waterData.append (total)
 			xData.append (line.split(",")[1])
 	myapp.ui.water_use_plot.plot(waterData)
 	xData = []
