@@ -2,12 +2,14 @@
 import time
 import requests
 import datetime
+import math
+from collections import deque
 
 class WaterScheduler (object):
 	def __init__ (self, numZones = 1, sensors = {}, timeSliceSize = 10):
 		"""
 			numZones must be greater than 0. Default is 1
-			sensors is an array of tuples listing the min and max values that can
+			sensors is a dictionary of tuples listing the min and max values that can
 			        be received from the sensors. The default is empty (no sensors)
 			timeSliceSize defines the length of the smallest amount of time in minutes
 					we care about using. The default is 10 minutes. So we will carry
@@ -15,6 +17,7 @@ class WaterScheduler (object):
 		
 			All of these class variables can and should be used by update
 		"""
+		self.name = "default"
 
 		with open ("wu_api_key.conf", "r") as f:
 			self.api_key = f.readline().strip();
@@ -73,10 +76,30 @@ class WaterScheduler (object):
 				amountOfRain.append(float(data["hourly_forecast"][hour]["qpf"]["metric"]))
 		elif window == 0:
 			pass
-
-			
-			
+	
 		return chanceOfRain, amountOfRain
+	def getSensorData (self, zone, sensorName, window):
+		"""
+			keys for sensor names should match. Used to get data for watering
+			decisions
+
+			data is expected to be kept under ./data
+
+			zone indentifies the spike (XBee id?)
+			sensorName identifies the data you're looking for (CMS, RMS, etc.)
+			window indicates how much data you're looking for (how many lines to read
+			from the end)
+
+			Note that accessing this data should be wrapped up in the class to
+			provide abstraction for the *actual* method of storage used. Add'l
+			someone needs to translate from indices to XBee IDs, and I don't think
+			it should be this module
+		"""
+		with open ("./data/" + zone + "-" + sensorName + ".txt") as f:
+			data = deque(f, maxlen=window)
+
+		return data
+
 	
 	def update (self):
 		"""
@@ -131,6 +154,10 @@ class dawnDuskScheduler (WaterScheduler):
 		after sunset. Of course, we can control the time slice
 		size, so we simply set our duration at the top
 	"""
+	def __init__ (self, numZones = 1, sensors = {}, timeSliceSize = 10):
+		self.name = "dawn-dusk"
+		super(dawnDuskScheduler, self).__init__(numZones, sensors, timeSliceSize)
+
 	def update (self):
 		duration = 20 / self.timeSliceSize
 		sunrise,sunset = self._getSunriseSunset();
@@ -143,3 +170,78 @@ class dawnDuskScheduler (WaterScheduler):
 
 			for t in range(sunSetSlice, sunSetSlice + duration):
 				self.wateringSchedule[z][t] = 1;
+
+class sensorBasedScheduler (WaterScheduler):
+	"""
+		Could also be called the as-needed scheduler. The idea is that
+		scheduling / watering is based on sensor inputs from spikes and
+		weights.
+
+		The following sensors are expected to be available on the garden
+		spikes:
+
+		Resistive moisture sensor - "RMS"
+		Capacitive moisture sensor = "CMS"
+		Photoresistor = "light"
+		Analog temperatre sensor = "temp"
+
+		If a sensor dictionary is not passed in (with the names and (min,max)
+		tuple), then the default min and max will be used. Note that these
+		default values simply correspond to the range of a 10 bit ADC (0,1023).
+		The main reasoning behind allowing a sensor dictionary to be passed in
+		is to allow calibrated values to be entered based on the use of voltage
+		dividers and the *actual* range of possible values.
+
+	"""
+	def __init__ (self, numZones = 1, sensors = {}, timeSliceSize = 10):
+		self.name = "sensor-based"
+		if {} == sensors:
+			sensors["RMS"] = (0,1023)
+			sensors["CMS"] = (0,1023)
+			sensors["temp"] = (0,1023)
+			sensors["light"] = (0,1023)
+
+		super(sensorBasedScheduler, self).__init__(numZones, sensors, timeSliceSize)
+
+	def addWeights(self, weight = {}):
+		"""
+			Add weights for the sensors based on how much they contribute to the
+			chance of watering in the next time slice. A weight is more than just
+			a coefficient, it's a polynomial represented as:
+			weight["sensor"] = [a0, a1, a2, ..., an] where each ai is a coefficient
+			for the corresponding order in the polynomial. As you might have guessed,
+			the role of x is played by the sensor value. Defining the weight in this
+			way should provide enough flexibility to properly model the relation
+			between the sensor and the chance of watering.
+
+			By the way, I'm fairly certain there is something in numpy for this,
+			but I don't have the time to investigate that at the moment 
+		"""
+		if {} == weight:
+			for key in self.sensors:
+				weight[key] = [0]
+		self.weight = weight
+
+	def update(self):
+		#Get latest measurements
+		for z in range(self.numZones):
+			things = {}
+			for key in sensors:
+				things[key] = int(self.getSensorData(z,key,1).split(",")[0])
+			
+			self.zone[z] = things
+
+		now = datetime.datetime.now()
+		t = self._getTimeSlice(now.hour, now.minute)
+		val = [0.0 for i in range(len(self.sensors))]
+		for z in range(self.numZones):
+			for i, key in enumerate(len(self.sensors)):
+				for p,w in enumerate(self.weight[key]):
+					val[i] += w * math.pow(self.zone[z][key],p) 
+			self.wateringSchedule[z][t+1] = sum(val)
+
+def advancedScheduler (WaterScheduler):
+	"""
+		Take EVERYTHING into account for watering!
+	"""
+	pass

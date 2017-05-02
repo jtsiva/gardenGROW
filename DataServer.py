@@ -1,3 +1,4 @@
+#!/usr/bin/python
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import SocketServer
 import simplejson
@@ -5,8 +6,8 @@ import random
 from urlparse import urlparse, parse_qs
 import datetime
 import time
-
-
+from sys import argv
+from WaterSched import *
 
 class S(BaseHTTPRequestHandler):
     def _set_headers(self):
@@ -25,16 +26,56 @@ class S(BaseHTTPRequestHandler):
         #NO WRITING
         print "in GET method"
 
-        spikeID = query_components["id"]
-        if None != spikeID:
-            print "id = " + str(spikeID)
+        returnData = ""
 
-        temp = query_components["temp"] 
+        try:
+            spikeID = query_components["id"]
+        except KeyError:
+            noID = True
 
-        if None != temp:
-            print "temp request"
-            returnData = getData(spikeID, "temp")
-            
+        try:
+            update = query_components["update"][0]
+            print update
+            if 1 == int(update):
+                """
+                    Send data back in json format
+                    Returning:
+                    {
+                        '0': [dur in minutes] -- int
+                        '1': [dur in minutes] -- int
+                        '2': [dur in minutes] -- int
+                        'sleep': [new deep sleep duration in minutes] -- int
+                    }
+
+                """
+                #get watering data from schedule
+                time = [(0,0) for i in xrange(scheduler.numZones)]
+                dur = [0 for i in xrange(scheduler.numZones)]
+                for i in xrange(scheduler.numZones):
+                    time[i] = scheduler.getNextZoneWatering(i)[0]
+                    dur[i] = scheduler.getNextZoneWatering(i)[1]
+                
+                returnData += '{'
+
+                for z in range (scheduler.numZones):
+                    now = datetime.datetime.now().time()
+                    if (now.hour * 60 + now.minute) + baseStationInterval > (time[z][0] * 60 + time[z][1]):
+                        returnData += '\"' + str(z) + '\": ' + str(dur[z]) + ',\n'
+                    else:
+                        returnData += '\"' + str(z) + '\": 0\n'
+
+                returnData += '\"sleep\": ' + str(baseStationInterval) + '}'
+                print returnData
+        except KeyError:
+            pass
+
+        if not noID:
+            try:
+                temp = query_components["temp"]
+                print "temp request"
+                returnData = getData(spikeID, "temp")
+            except KeyError:
+                pass                
 
         self.wfile.write(returnData)
 
@@ -50,26 +91,38 @@ class S(BaseHTTPRequestHandler):
         self.end_headers()
 
         data = simplejson.loads(self.data_string)
-        # data to look like:
-        # {"spikeID" : [0-2],
-        #  "temp" : number,
-        #  "CMS" : number,
-        #  "RMS" : number,
-        #  "light" : [0-3]}
 
-        spikeID = data["spikeID"]
-        temp = data["temp"]
-        cms = data["CMS"]
-        rms = data["RMS"]
-        light = data["light"]
+        """
+            data to look like:
+            {"spikeID" : xbee id (char array),
+             "temp" : number,
+             "CMS" : number,
+             "RMS" : number,
+             "light" : number}
+            for sensor update
+            
+            and like:
+            {'waterUsed': int}
+            for water usage update. The number is the number of pulses counted
+        """   
 
         ts = time.time()
         st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
-        storeData (spikeID, "temp", int(data["temp"]), st)
-        storeData (spikeID, "CMS", int(data["CMS"]), st)
-        storeData (spikeID, "RMS", int(data["RMS"]), st)
-        storeData (spikeID, "light", int(data["light"]), st)
+        print data
+        try:
+
+            storeData (str(data["spikeID"]) + "-temp", int(data["temp"]), st)
+            storeData (str(data["spikeID"]) + "-CMS", int(data["CMS"]), st)
+            storeData (str(data["spikeID"]) + "-RMS", int(data["RMS"]), st)
+            storeData (str(data["spikeID"]) + "-light", int(data["light"]), st)
+
+        except KeyError:
+            #if the above fails then we must have a water usage update
+            storeData ("waterUsed", data["waterUsed"], st)
+
+
+        scheduler.update()
 
         return
 
@@ -87,15 +140,24 @@ def getData (spikeID, dataType):
 
 
 def run(server_class=HTTPServer, handler_class=S, port=80):
+    """
+        Set up the watering scheduler and then start the server
+    """
+
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     print 'Starting httpd...'
-    httpd.serve_forever()
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print "Exiting..."
 
 if __name__ == "__main__":
-    from sys import argv
+    scheduler = dawnDuskScheduler (numZones = 1)
+    scheduler.update()
+    baseStationInterval = 10#30 #minutes, can match scheduler
 
-if len(argv) == 2:
-    run(port=int(argv[1]))
-else:
-    run()
+    if len(argv) == 2:
+        run(port=int(argv[1]))
+    else:
+        run()
